@@ -40,11 +40,7 @@ Create a `.env` file in the root directory:
 
 ```env
 # Database Configuration
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=ecommerce_db
-DB_USER=postgres
-DB_PASSWORD=your_password
+DATABASE_URL=postgresql://neondb_owner:npg_fkh9zL6nMQtD@ep-super-recipe-a126kk6h-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
 
 # Server Configuration
 PORT=3000
