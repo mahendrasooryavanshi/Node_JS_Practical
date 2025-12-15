@@ -92,14 +92,6 @@ const addToCart = async (req, res, next) => {
       items,
       total
     });
-
-
-    return res.status(201).json({
-      status: 201,
-      message: "Added in cart item successfully",
-      data: items
-    });
-
   } catch (error) {
     next(error);
   }
