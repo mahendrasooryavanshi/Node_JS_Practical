@@ -7,22 +7,30 @@ const { query } = require('../config/database');
  */
 const validateStock = async (req, res, next) => {
   try {
-    const { product_id, quentity } = req.body;
-    const [product] = await query(`select * from products where id=?`, [product_id]);
-    console.log(product, ">>>>>>>>>")
+    const { product_id, quantity } = req.body;
+
+    const result = await query(
+      `SELECT * FROM products WHERE id = $1`,
+      [product_id]
+    );
+
+    const product = result.rows[0];
+
     if (!product) {
       return res.status(404).json({
         status: 404,
-        message: "Product Not found."
-      })
+        message: "Product not found"
+      });
     }
-    if (product.stock_quantity < quentity) {
-      return res.status(404).json({
-        status: 404,
-        message: "Product is out of stock."
-      })
+
+    if (product.stock_quantity < quantity) {
+      return res.status(400).json({
+        status: 400,
+        message: "Insufficient stock"
+      });
     }
-    req.product = product
+
+    req.product = product;
     next();
   } catch (error) {
     next(error);

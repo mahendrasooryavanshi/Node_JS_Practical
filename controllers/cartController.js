@@ -7,48 +7,98 @@ const { query } = require('../config/database');
  */
 const addToCart = async (req, res, next) => {
   try {
-    const { user_id, product_id, quantity } = req.body || null;
-    const [cart] = await query(`SELECT * from carts where user_id=$1 AND status=$2`, [user_id, 'active']);
+    const { user_id, product_id, quantity } = req.body;
+
+    const cartResult = await query(
+      `SELECT * FROM carts WHERE user_id=$1 AND status=$2`,
+      [user_id, 'active']
+    );
+
+    let cart = cartResult.rows[0];
+
 
     if (!cart) {
-      const result = await query(`INSERT INTO carts (user_id,status) VALUES($1,$2) RETURNING *`, [user_id, 'active'])
+      const result = await query(
+        `INSERT INTO carts (user_id,status)
+         VALUES($1,$2) RETURNING *`,
+        [user_id, 'active']
+      );
       cart = result[0];
     }
 
-    //check if iteam alredy exited in the cart
+    // check if item already exists
+    const itemResult = await query(
+      `SELECT * FROM cart_items WHERE cart_id=$1 AND product_id=$2`,
+      [cart.id, product_id]
+    );
 
-    const [exitedItems] = await query(`SELECT * FROM cart_items WHERE cart_id=$1,
-      product_id=$2`, [cart.id, product_id]);
+    const existingItem = itemResult.rows[0];
 
-    if (exitedItems) {
-      // update quentity of items
-      await query(`UPDATE cart_items SET quantity = quantity+ $1 WHERE id = $2`, [quantity, exitedItems.id]);
+
+    if (existingItem) {
+      await query(
+        `UPDATE cart_items
+         SET quantity = quantity + $1
+         WHERE id = $2`,
+        [quantity, existingItem.id]
+      );
     } else {
-      //inset new items with price
-      const [result] = await query(`SELECT price from products WHERE id = $1`, [product_id]);
-      const product = result.rows[0]
+      const productResult = await query(
+        `SELECT price FROM products WHERE id = $1`,
+        [product_id]
+      );
+
+      const product = productResult.rows[0];
+
       if (!product) {
-        return res.status(404).json({
-          message: "Product not found"
-        })
+        return res.status(404).json({ message: "Product not found" });
       }
-      await query(`insert into  cart_items(cart_id,product_id,quantity,price_at_addition) VALUES ($1,$2,$3,$4) RETURNING *`, [cart.id, product_id, quantity, product.price])
+
+      await query(
+        `INSERT INTO cart_items
+         (cart_id, product_id, quantity, price_at_addition)
+         VALUES ($1,$2,$3,$4)`,
+        [cart.id, product_id, quantity, product.price]
+      );
     }
-    const items = await query(
-      `SELECT ci.product_id, ci.quantity, ci.price_at_addition, p.name, p.stock_quantity
-       FROM cart_items ci
-       JOIN products p ON ci.product_id = p.id
-       WHERE ci.cart_id = $1`,
+
+    const itemsResult = await query(
+      `SELECT 
+     ci.product_id,
+     ci.quantity,
+     ci.price_at_addition AS price,
+     p.name AS product_name
+   FROM cart_items ci
+   JOIN products p ON ci.product_id = p.id
+   WHERE ci.cart_id = $1`,
       [cart.id]
     );
 
-    const result = items.rows;
+    const items = itemsResult.rows.map(item => {
+      const subtotal = Number(item.quantity) * Number(item.price);
+      return {
+        product_id: item.product_id,
+        product_name: item.product_name,
+        quantity: item.quantity,
+        price: Number(item.price),
+        subtotal
+      };
+    });
+
+    const total = items.reduce((sum, item) => sum + item.subtotal, 0);
+
+    return res.status(200).json({
+      cart_id: cart.id,
+      items,
+      total
+    });
+
 
     return res.status(201).json({
       status: 201,
       message: "Added in cart item successfully",
-      data: result
-    })
+      data: items
+    });
 
   } catch (error) {
     next(error);
