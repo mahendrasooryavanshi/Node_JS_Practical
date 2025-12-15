@@ -9,9 +9,9 @@ const verifyCartOwnership = require('../middleware/verifyCartOwnership');
  * POST /api/cart/items
  * Add product to cart
  */
-router.post('/items', 
-  validateRequest, 
-  validateStock, 
+router.post('/items',
+  validateRequest,
+  validateStock,
   cartController.addToCart
 );
 
